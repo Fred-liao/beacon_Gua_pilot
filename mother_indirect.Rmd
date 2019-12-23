@@ -61,7 +61,7 @@ tableOutput("summary_table")
 
 ```{r}
 #load all the data from pre-existing dataset
-load("beacon_mother_comparison.RData")
+load("beacon_JESEE_paper_data.RData")
 
 #select data for scatter plot
 selected_PEO_daily = reactive({

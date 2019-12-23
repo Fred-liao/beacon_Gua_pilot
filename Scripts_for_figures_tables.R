@@ -1,6 +1,8 @@
 ##Script for generating tables and figures for Liao et al., JESEE 2019 paper
 library(data.table)
-load('beacon_mother_comparison.RData')
+library(ggplot2)
+library(ggpubr)
+load('beacon_JESEE_paper_data.RData')
 
 
 ####Figures####
