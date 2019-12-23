@@ -14,5 +14,5 @@
 # Description of scripts:
 - mother_indirect.Rmd: runs the mother's microenvironmental data visualizations.  Alternatively, you can assess online Shinyapp https://hapin-trial.shinyapps.io/mother_microenvironmental_data/, which runs the script online showing the plots
 
-- Scripts_for_figures_tables.R: generates the tables and figures for JESSE paper https:// doi.org/10.1038/s41370-019-0172-z.
+- Scripts_for_figures_tables.R: generates the tables and figures for JESSE paper https://doi.org/10.1038/s41370-019-0172-z .
 
