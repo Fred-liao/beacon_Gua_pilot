@@ -2,7 +2,7 @@
 - You need to use R/RStudio to open data file and scripts.
 - You need to install R packages loaded in the scripts, see each script for required packages.
 
-# Description of data file in beacon_mother_comparison.RData
+# Description of data file in beacon_JESEE_paper_data.RData
 Beacon_data3: contains the Beacon instruments' Received Signal Strength Indicator (RSSI), indicating the location of mothers in each microenvironment.
 Beacon_inventory: contains the Beacon emitter inventories
 ECM_all: contains 5-minutes interval ECM measured PM2.5 dath
