@@ -1,0 +1,431 @@
+---
+title: "Mother indirect PM data"
+
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    source: embed
+runtime: shiny
+---
+
+```{r}
+#mother beacon PM2.5 data display
+
+```
+
+```{r global, include=FALSE}
+library(data.table)
+library(readxl)
+library(plyr)
+library(DT)
+library(shiny)
+library(ggplot2)
+library(shinyFiles)
+library(readr)
+library(jsonlite)
+library(purrr)
+library(reshape2)
+library(dplyr)
+library(flexdashboard)
+library(rsconnect)
+library(lubridate)
+library(dplyr)
+library(plotly)
+library(RColorBrewer)
+
+```
+
+Inputs {.sidebar data-width=350}
+=====================================
+```{r}
+#No data input
+
+
+#part 2: study phase selected
+renderUI({
+      selectInput('replicate_selected',HTML("<strong> Select a study phase for analysis</strong> ") ,choices = c("01","02","03","04"),selected = c("01","02","03","04"), multiple = T, selectize = TRUE, width = NULL, size = NULL)
+})
+
+output$summary_message <- renderText({
+      'Summary statistics: Box select on right figure to create summary statistics (double click blank space on the plot to select all data)'
+})
+
+textOutput("summary_message")
+
+tableOutput("summary_table")
+
+
+```
+
+
+```{r}
+#load all the data from pre-existing dataset
+load("beacon_mother_comparison.RData")
+
+#select data for scatter plot
+selected_PEO_daily = reactive({
+      data <- PEO_daily3[phase %in% input$replicate_selected]
+      data
+})
+Mother_exposure = reactive({
+      Mother_exposure_all
+})
+
+
+```
+
+```{r}
+
+#server
+output$plot1 = renderPlotly({
+      line <- list(
+            type = "line",
+            line = list(color = "red"),
+            opacity = 0.3,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 800,
+            y0 = 0,
+            y1 = 800)
+      
+      p = plot_ly(selected_PEO_daily(),x = ~PM_indirect2, y = ~PM_direct2,color = ~phase,
+                  type = 'scatter', mode = 'markers', hoverinfo = 'text',
+                   text = ~paste(
+                         '</br> Phase: ', phase,
+                         '</br> Household ID: ', hhid,
+                         '</br> Indirect PM concentration: ', PM_indirect2,
+                         '</br> Direct PM concentration: ',PM_direct2,
+                         '</br></br> Time spent in each microenvironemnt (hour)',
+                         '</br> Kitchen: ', Kitchen_time2,
+                         '</br> SAP: ', SAP_time2,
+                         '</br> HOP: ', HOP_time2,
+                         '</br> Outside: ', Outside_time2,
+                         '</br></br> Decompose Indirect PM measure by microenvironment (ug/m3) ',
+                        '</br> Kitchen indirect PM: ', round(Kitchen_indirect_PM2,1),
+                        '</br> SAP indirect PM: ', round(SAP_indirect_PM2,1),
+                        '</br> HOP indirect PM: ', round(HOP_indirect_PM2,1),
+                        '</br></br> Decompose direct PM measure by Microenvironment (ug/m3) ',
+                        '</br> Kitchen direct PM: ', round(Kitchen_direct_PM2,1),
+                        '</br> SAP direct PM: ', round(SAP_direct_PM2,1),
+                        '</br> HOP direct PM: ', round(HOP_direct_PM2,1),
+                        '</br> Outside direct PM: ', round(Outside_direct_PM2,1)
+                        )
+      ) %>%
+            layout(shapes = line,
+                   title = 'Mother Direct vs. Indirect Daily PM2.5 Measurement',
+                  xaxis = list(title = 'Indirect PM2.5 measurement (ug/m3)'),
+                  yaxis = list(title = 'Direct PM2.5 measurement (ug/m3)'),
+                  dragmode = "select"
+                  )
+
+      p
+})
+
+
+#brushed data
+output$summary_table = renderTable({
+      if (is.null(event_data("plotly_selected"))){
+            D_I_cor = round(cor(selected_PEO_daily()$PM_direct2, selected_PEO_daily()$PM_indirect2,
+    use = "pairwise.complete.obs", method = "spearman"),2)
+            D_K_cor = round(cor(selected_PEO_daily()$PM_direct2, selected_PEO_daily()$PM_kitchen2,
+    use = "pairwise.complete.obs", method = "pearson"),2)
+            Direct_m = round(mean(selected_PEO_daily()$PM_direct2, na.rm = T ),0)
+            Direct_sd = round(sd(selected_PEO_daily()$PM_direct2, na.rm = T ),0)
+            Indirect_m = round(mean(selected_PEO_daily()$PM_indirect2, na.rm = T),0)
+            Indirect_sd = round(sd(selected_PEO_daily()$PM_indirect2, na.rm = T),0)
+
+            
+      }else{
+            selected_PEO_daily2 = selected_PEO_daily()[PM_direct2 %in% event_data("plotly_selected")[["y"]] & PM_indirect2 %in% event_data("plotly_selected")[["x"]],]
+            D_I_cor = round(cor(selected_PEO_daily2$PM_direct2, selected_PEO_daily2$PM_indirect2,
+    use = "pairwise.complete.obs", method = "spearman"),2)
+            D_K_cor = round(cor(selected_PEO_daily2$PM_direct2, selected_PEO_daily2$PM_kitchen2,
+    use = "pairwise.complete.obs", method = "pearson"),2)
+            Direct_m = round(mean(selected_PEO_daily2$PM_direct2, na.rm = T ),0)
+            Direct_sd = round(sd(selected_PEO_daily2$PM_direct2, na.rm = T ),0)
+            Indirect_m = round(mean(selected_PEO_daily2$PM_indirect2, na.rm = T),0)
+            Indirect_sd = round(sd(selected_PEO_daily2$PM_indirect2, na.rm = T),0)
+            
+      } 
+      Measure =rbind('Direct-Indirect Corr','Direct-kitchen corr','Direct PM2.5 mean','Direct PM2.5 sd','Indirect PM2.5 mean','Indirect PM2.5 sd' )
+      Value = rbind(D_I_cor,D_K_cor,Direct_m,Direct_sd,Indirect_m,Indirect_sd)
+      summary_table = cbind.data.frame(Measure,Value) 
+      summary_table
+      
+          
+})
+
+
+
+#Time series plot
+output$timeseries_ECM = renderPlotly({
+    click_data = event_data("plotly_click")
+    if (!is.null(click_data)) {
+          
+          hhid_selected = as.character(selected_PEO_daily()[PM_direct2 ==click_data[["y"]]&PM_indirect2==click_data[["x"]],hhid ])
+          phase_selected = as.character(selected_PEO_daily()[PM_direct2 ==click_data[["y"]]&PM_indirect2==click_data[["x"]],phase ])
+
+          
+          
+          MAC_selected = unique(Mother_exposure()[hhid.x==hhid_selected&replicate ==phase_selected ,MAC])
+          
+          plot_file_1 = Mother_exposure()[hhid.y==hhid_selected&phase ==phase_selected ,][MAC==MAC_selected[1]|is.na(MAC),c("datetime4","monitor_env","ECM_PM.x","ECM_PM.y")]
+      plot_file_1$duplic= duplicated.data.frame(plot_file_1, by = c("datetime4","monitor_env","ECM_PM.y"))
+      plot_file_1 = plot_file_1[duplic==F,]
+      plot_file_1 = plot_file_1[order(datetime4)]
+      start_time = plot_file_1[monitor_env != "Out",datetime4][1]
+      plot_file_1 = plot_file_1[datetime4>start_time]
+      plot_file_1[,duplic:=NULL]
+      plot_file_1 = melt.data.table(plot_file_1,id.vars = c("datetime4", "monitor_env"))
+
+      plot_file_2 = Mother_exposure()[hhid.y==hhid_selected&phase ==phase_selected ,][MAC==MAC_selected[2]|is.na(MAC),c("datetime4","monitor_env","ECM_PM.x","ECM_PM.y")]
+      plot_file_2$duplic= duplicated.data.frame(plot_file_2, by = c("datetime4","monitor_env","ECM_PM.y"))
+      plot_file_2 = plot_file_2[duplic==F,]
+      plot_file_2 = plot_file_2[order(datetime4)]
+      start_time = plot_file_2[monitor_env != "Out",datetime4][1]
+      plot_file_2 = plot_file_2[datetime4>start_time]
+      plot_file_2[,duplic:=NULL]
+      plot_file_2 = melt.data.table(plot_file_2,id.vars = c("datetime4", "monitor_env"))
+
+      plot_file_1[variable == "ECM_PM.x",variable := "ECM_PM_indirect"];plot_file_1[variable == "ECM_PM.y",variable := "ECM_PM_direct"]
+      plot_file_2[variable == "ECM_PM.x",variable := "ECM_PM_indirect"];plot_file_2[variable == "ECM_PM.y",variable := "ECM_PM_direct"]
+
+if(nrow(plot_file_2)!=0){
+      plot_file = merge(plot_file_2,plot_file_1[,c("datetime4","value","variable")], by = c("datetime4","variable"))
+      plot_file[,value := (value.x + value.y)/2]
+
+      p = ggplot(plot_file) +
+      geom_segment(aes(x = datetime4,xend = datetime4, y = -10, yend = -max(plot_file$value,na.rm = T)/10, color = monitor_env))+
+      geom_line(aes(x = datetime4, y = value, color = variable) )+
+      scale_color_manual(values = brewer.pal(6, "Set2"),
+                         name="Location/Measure",
+                         labels=c("Direct ECM measure", "Indirect ECM measure", "HOP","KAP","SAP"))+
+      labs(x = "Datetime",y = "PM2.5 concentration before calibration (ug/m3)",title = paste("Time series plot of ECM direct and indirect in hhid",hhid_selected,"in phase",phase_selected,sep = " "))+
+      theme_bw()
+}else{
+      p = ggplot(plot_file_1) +
+            geom_segment(aes(x = datetime4,xend = datetime4, y = -10, yend = -max(plot_file_1$value,na.rm = T)/10, color = monitor_env))+
+            geom_line(aes(x = datetime4, y = value, color = variable) )+
+            scale_color_manual(values = brewer.pal(6, "Set2"),
+                               name="Location/Measure",
+                               labels=c("Direct ECM measure", "Indirect ECM measure", "HOP","KAP","SAP"))+
+            labs(x = "Datetime",y = "PM2.5 concentration before calibration (ug/m3)",title = paste("Time series plot of ECM direct and indirect in hhid",hhid_selected,"in phase",phase_selected,sep = " "))+
+            theme_bw()
+      
+}
+      p = ggplotly(p)
+      p
+                
+    } else {
+    plotly_empty()
+    }
+  })
+
+
+
+
+
+
+```
+
+
+
+Beacon ECM PM2.5
+=====================================  
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+### **Scatter plot of 24-hour ECM direct vs indirect PM2.5 measure for mothers**
+
+```{r}
+#UI
+
+plotlyOutput("plot1")
+
+
+
+
+
+
+
+
+```
+
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+### **Time series plot: click any data point in above scatter plot to generate direct vs. indirect ECM time series plot **
+
+```{r}
+plotlyOutput("timeseries_ECM")
+
+
+```
+
+
+
+Bland Altman Plot
+======================================================================  
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+### **Direct - Indirect plot**
+
+
+```{r}
+
+output$BA_plot1 = renderPlotly({ 
+      line1 = list(
+            type = "line",
+            line = list(color = "red"),
+            opacity = 1,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 1000,
+            y0 = mean(selected_PEO_daily()$diff_d_in) - (1.96 * sd(selected_PEO_daily()$diff_d_in)),
+            y1 = mean(selected_PEO_daily()$diff_d_in) - (1.96 * sd(selected_PEO_daily()$diff_d_in)))
+      line2 = list(
+            type = "line",
+            line = list(color = "blue"),
+            opacity = 1,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 1000,
+            y0 = mean(selected_PEO_daily()$diff_d_in),
+            y1 = mean(selected_PEO_daily()$diff_d_in))
+      line3 = list(
+            type = "line",
+            line = list(color = "red"),
+            opacity = 1,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 1000,
+            y0 = mean(selected_PEO_daily()$diff_d_in) + (1.96 * sd(selected_PEO_daily()$diff_d_in)),
+            y1 = mean(selected_PEO_daily()$diff_d_in) + (1.96 * sd(selected_PEO_daily()$diff_d_in)))
+            
+            
+      p1 = plot_ly(selected_PEO_daily()) %>%
+            add_markers(x = ~ave_d_in, y = ~diff_d_in,color = ~phase, hoverinfo = 'text',
+                   text = ~paste(
+                         '</br> Phase: ', phase,
+                         '</br> Household ID: ', hhid,
+                         '</br> Indirect PM concentration: ', PM_indirect2,
+                         '</br> Direct PM concentration: ',PM_direct2,
+                         '</br></br> Time spent in each microenvironemnt (hour)',
+                         '</br> Kitchen: ', Kitchen_time2,
+                         '</br> SAP: ', SAP_time2,
+                         '</br> HOP: ', HOP_time2,
+                         '</br> Outside: ', Outside_time2,
+                         '</br></br> Decompose Indirect PM measure by microenvironment (ug/m3) ',
+                        '</br> Kitchen indirect PM: ', round(Kitchen_indirect_PM2,1),
+                        '</br> SAP indirect PM: ', round(SAP_indirect_PM2,1),
+                        '</br> HOP indirect PM: ', round(HOP_indirect_PM2,1),
+                        '</br></br> Decompose direct PM measure by Microenvironment (ug/m3) ',
+                        '</br> Kitchen direct PM: ', round(Kitchen_direct_PM2,1),
+                        '</br> SAP direct PM: ', round(SAP_direct_PM2,1),
+                        '</br> HOP direct PM: ', round(HOP_direct_PM2,1),
+                        '</br> Outside direct PM: ', round(Outside_direct_PM2,1)
+                        )) %>%
+            layout(shapes = list(line1, line2, line3),
+                   title = 'BA plot1',
+                  xaxis = list(title = 'Average of Direct and Indirect Measure (ug/m3)',range = c(0,1000)),
+                  yaxis = list(title = 'Diff. Between Direct and Indirect Measure (ug/m3)',range = c(-2300, 700))
+                  )
+      p1
+      
+      
+      
+
+      
+      })
+
+plotlyOutput("BA_plot1")
+
+
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+### **Direct - kitchen plot**
+
+```{r}
+
+output$BA_plot2 = renderPlotly({ 
+      
+      line1 = list(
+            type = "line",
+            line = list(color = "red"),
+            opacity = 1,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 1000,
+            y0 = mean(selected_PEO_daily()$diff_d_k,na.rm = T) - (1.96 * sd(selected_PEO_daily()$diff_d_k,na.rm = T)),
+            y1 = mean(selected_PEO_daily()$diff_d_k,na.rm = T) - (1.96 * sd(selected_PEO_daily()$diff_d_k,na.rm = T)))
+      
+      line2 = list(
+            type = "line",
+            line = list(color = "blue"),
+            opacity = 1,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 1000,
+            y0 = mean(selected_PEO_daily()$diff_d_k,na.rm = T),
+            y1 = mean(selected_PEO_daily()$diff_d_k,na.rm = T))
+      
+      line3 = list(
+            type = "line",
+            line = list(color = "red"),
+            opacity = 1,
+            xref = "x",
+            yref = "y",
+            x0 = 0,
+            x1 = 1000,
+            y0 = mean(selected_PEO_daily()$diff_d_k,na.rm = T) + (1.96 * sd(selected_PEO_daily()$diff_d_k,na.rm = T)),
+            y1 = mean(selected_PEO_daily()$diff_d_k,na.rm = T) + (1.96 * sd(selected_PEO_daily()$diff_d_k,na.rm = T)))
+            
+            
+      p2 = plot_ly(selected_PEO_daily()) %>%
+            add_markers(x = ~ave_d_k, y = ~diff_d_k,color = ~phase,hoverinfo = 'text',
+                   text = ~paste(
+                         '</br> Phase: ', phase,
+                         '</br> Household ID: ', hhid,
+                         '</br> Indirect PM concentration: ', PM_indirect2,
+                         '</br> Direct PM concentration: ',PM_direct2,
+                         '</br></br> Time spent in each microenvironemnt (hour)',
+                         '</br> Kitchen: ', Kitchen_time2,
+                         '</br> SAP: ', SAP_time2,
+                         '</br> HOP: ', HOP_time2,
+                         '</br> Outside: ', Outside_time2,
+                         '</br></br> Decompose Indirect PM measure by microenvironment (ug/m3) ',
+                        '</br> Kitchen indirect PM: ', round(Kitchen_indirect_PM2,1),
+                        '</br> SAP indirect PM: ', round(SAP_indirect_PM2,1),
+                        '</br> HOP indirect PM: ', round(HOP_indirect_PM2,1),
+                        '</br></br> Decompose direct PM measure by Microenvironment (ug/m3) ',
+                        '</br> Kitchen direct PM: ', round(Kitchen_direct_PM2,1),
+                        '</br> SAP direct PM: ', round(SAP_direct_PM2,1),
+                        '</br> HOP direct PM: ', round(HOP_direct_PM2,1),
+                        '</br> Outside direct PM: ', round(Outside_direct_PM2,1)
+                        )) %>%
+            layout(shapes = list(line1, line2, line3),
+                   title = 'BA plot2',
+                  xaxis = list(title = 'Average of Direct and Kitchen Measure (ug/m3)',range = c(0,1000)),
+                  yaxis = list(title = 'Diff. Between Direct and Kitchen Measure (ug/m3)',range = c(-2300, 700))
+                  )
+      
+      p2
+      
+      
+      })
+
+plotlyOutput("BA_plot2")
+
+
+
+```

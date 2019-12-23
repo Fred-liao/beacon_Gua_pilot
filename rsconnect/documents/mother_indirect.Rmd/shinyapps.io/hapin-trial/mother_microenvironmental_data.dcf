@@ -1,0 +1,12 @@
+name: mother_microenvironmental_data
+title: mother_microenvironmental_data
+username:
+account: hapin-trial
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 512994
+bundleId: 2687163
+url: https://hapin-trial.shinyapps.io/mother_microenvironmental_data/
+when: 1577070098.06171
+asMultiple: FALSE
+asStatic: FALSE
