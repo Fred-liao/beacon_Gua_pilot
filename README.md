@@ -16,3 +16,7 @@
 
 - Scripts_for_figures_tables.R: generates the tables and figures for JESSE paper https://doi.org/10.1038/s41370-019-0172-z .
 
+# Time resolved dataset
+- Children_PM_time_resolved.rds: children's time resolved data
+- Mother_PM_time_resolved.rds: mothers' time resolved data
+- Note: these data are not directly used in JESSE paper
