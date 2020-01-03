@@ -161,7 +161,7 @@ cor(PEO_daily3[phase == "01"|phase == "02"]$PM_direct2, PEO_daily3[phase == "01"
     use = "pairwise.complete.obs", method = "spearman")
 cor(PEO_daily3[phase == "03"|phase == "04"]$PM_direct2, PEO_daily3[phase == "03"|phase == "04"]$PM_indirect2, 
     use = "pairwise.complete.obs", method = "spearman")
-cor(PEO_daily3$PM_direct2, PEO_daily3$PM_kitchen2,
+cor(PEO_daily3$PM_direct2, PEO_daily3$PM_indirect2,
     use = "pairwise.complete.obs", method = "spearman")
 
 ##Table 3
